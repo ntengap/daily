@@ -2558,6 +2558,16 @@ MTALK.forEach((m,i)=>{
   const E=ES_MT[i];E.q=frNb(E.q);E.o.forEach(x=>{x[0]=frNb(x[0]);x[1]=frNb(x[1])});m.q[0]=E.q;m.q[1]=esRe(E.q);
   m.o.forEach((o,j)=>{o[0]=E.o[j][0];o[1]=esRe(o[0]);o[3]=E.o[j][1];o[4]=esRe(o[3]);o[6]=String(o[6]).replace(/我/g,'I').replace(/妈妈/g,'mom')});
 });
+/* builder: speak the target-language word, not the Chinese one */
+function crPick(i){
+  if(V.busy)return;
+  const st=crSteps(),c=V.cr,k=st[c.i],o=crOpts(k)[i];if(!o)return;
+  V.busy=1;
+  if(k==='pat')c.sel={pat:o};else{c.sel[k]=o;st.slice(c.i+1).forEach(x=>delete c.sel[x])}
+  speak(k==='pat'?'':(o.eh||o.h),.7);create();
+  setTimeout(()=>{V.busy=0;if(V.view!=='create')return;c.i++;create();
+    if(c.i>=crSteps().length){chime();setTimeout(()=>speak(crZh(),.7),350)}},650);
+}
 
 render();
 </script>
