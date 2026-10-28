@@ -247,6 +247,17 @@ svg{display:block}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
+<script>/* speech hardening: unlock on first tap, explicit voice, safe cancel */
+(function(){try{var ss=window.speechSynthesis;if(!ss||!window.SpeechSynthesisUtterance)return;
+var os=ss.speak.bind(ss),oc=ss.cancel.bind(ss),lastC=0,unlocked=false;
+function pick(l){var vs=ss.getVoices();if(!vs.length)return null;l=String(l).toLowerCase().replace('_','-');var p=l.slice(0,2);
+ return vs.filter(function(v){return v.lang.toLowerCase().replace('_','-')===l})[0]||vs.filter(function(v){return v.lang.toLowerCase().slice(0,2)===p})[0]||null}
+ss.cancel=function(){if(ss.speaking||ss.pending){lastC=Date.now();oc()}};
+ss.speak=function(u){try{if(u&&u.lang&&!u.voice){var v=pick(u.lang);if(v)u.voice=v}if(ss.paused)ss.resume()}catch(e){}
+ var d=Date.now()-lastC<80?80:0;if(d)setTimeout(function(){os(u)},d);else os(u)};
+function unlock(){if(unlocked)return;unlocked=true;try{var u=new SpeechSynthesisUtterance(' ');u.volume=0;os(u)}catch(e){}}
+['touchend','pointerup','click'].forEach(function(ev){addEventListener(ev,unlock,{capture:true,passive:true})});
+}catch(e){}})();</script>
 </head>
 <body>
 <div id="app"></div>
@@ -558,6 +569,16 @@ const isStandalone=()=>{try{return matchMedia('(display-mode: standalone)').matc
 const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;if(V.view==='home')home()});
 window.addEventListener('appinstalled',()=>{S.inst=1;save();deferredInstall=null;if(V.view==='home')home()});
+let vState=0;
+const hasZhVoice=()=>{try{return speechSynthesis.getVoices().some(v=>/^zh/i.test(v.lang))}catch(e){return true}};
+const isAndroid=()=>/android/i.test(navigator.userAgent);
+try{speechSynthesis.onvoiceschanged=()=>{if(V.view==='home')home()}}catch(e){}
+setTimeout(()=>{vState=1;if(V.view==='home')home()},2500);
+function voiceBanner(){
+  if(S.vx||!vState||hasZhVoice())return '';
+  const h=isIOS()?'iPhone: Settings → Accessibility → Spoken Content → Voices → Chinese, then download a voice. Check the silent switch and volume.':isAndroid()?'Android / Samsung: Settings → General management → Text-to-speech → choose Google Speech Services, then install Chinese (Mandarin) voice data.':'Install a Chinese (Mandarin) voice in your device settings, then reopen the app.';
+  return `<div class="inst"><div class="inst-t">No Mandarin voice found on this phone</div><button class="btn" data-a="vtest">Test sound</button><button class="icon-btn" data-a="vx" aria-label="Hide">${ICON.x}</button><div class="inst-h">${h}</div></div>`;
+}
 function instBanner(){
   if(isStandalone()||S.inst)return '';
   const help=V.instHelp?`<div class="inst-h">${isIOS()?'Tap the Share button, then Add to Home Screen.':'Open the browser menu, then tap Install app or Add to Home screen.'}</div>`:'';
@@ -613,6 +634,7 @@ function home(){
       ${ok?`<span class="stars">${[1,2,3].map(i=>star(stars(x.n)>=i)).join('')}</span>`:ICON.lock}</button>`}).join('');
   $('#app').innerHTML=`
   <div class="bar"><div class="logo">Mandarin <b>Daily</b></div><div class="rt">${tmBtn()}<div class="pill">${star(true,18)}${totalStars()}</div></div></div>
+  ${voiceBanner()}
   ${instBanner()}
   <section class="hero">
     <div class="hero-top"><div class="day-n">Day ${d.n}</div><div class="day-t">${d.t}</div></div>
@@ -1627,7 +1649,7 @@ function enSent(){
     const vp=k==='want'?(S.s3?'wants to ':'want to ')+(Vb.k==='see'?'see':v[1]):{past:v[0],pres:S.s3?v[2]:v[1],fut:'will '+v[1],prog:S.be+' '+v[3]}[W.t];
     let tail='';
     if(Vb.k==='go')tail=' '+s.where.go;
-    else if(Vb.need==='none')tail=Vb.k==='brush'?' '+S.poss+' teeth':'';
+    else if(Vb.need==='none')tail=Vb.k==='brush'?' '+S.poss+' teeth':Vb.k==='medicine'?' medicine':'';
     else if(Vb.need==='objonly')tail=(k==='want'?' ':' to see ')+s.obj.en;
     else if(Vb.need==='obj2')tail=' the '+s.obj.en;
     else{if(Vb.need==='obj')tail=' '+s.obj.en;tail+=' '+s.where.at}
@@ -1863,6 +1885,8 @@ document.addEventListener('click',e=>{
     if(deferredInstall){const d=deferredInstall;deferredInstall=null;d.prompt();d.userChoice.then(c=>{if(c.outcome==='accepted'){S.inst=1;save()}home()}).catch(()=>home())}
     else if(V.instHelp){V.instHelp=false;S.inst=1;save();home()}
     else{V.instHelp=true;home()}}
+  else if(a==='vtest'){speak('你好',.8)}
+  else if(a==='vx'){S.vx=1;save();home()}
   else if(a==='instx'){S.inst=1;save();V.instHelp=false;home()}
   else if(a==='tmr'){V.tmAll=!V.tmAll;const e=document.getElementById('tmt');if(e)e.textContent=tmText()}
   else if(a==='print')go('printv');

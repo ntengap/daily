@@ -282,6 +282,17 @@ svg{display:block}
 .tile.hint{border-color:var(--jade);background:var(--good)}
 .topt b{line-height:1.1}
 </style>
+<script>/* speech hardening: unlock on first tap, explicit voice, safe cancel */
+(function(){try{var ss=window.speechSynthesis;if(!ss||!window.SpeechSynthesisUtterance)return;
+var os=ss.speak.bind(ss),oc=ss.cancel.bind(ss),lastC=0,unlocked=false;
+function pick(l){var vs=ss.getVoices();if(!vs.length)return null;l=String(l).toLowerCase().replace('_','-');var p=l.slice(0,2);
+ return vs.filter(function(v){return v.lang.toLowerCase().replace('_','-')===l})[0]||vs.filter(function(v){return v.lang.toLowerCase().slice(0,2)===p})[0]||null}
+ss.cancel=function(){if(ss.speaking||ss.pending){lastC=Date.now();oc()}};
+ss.speak=function(u){try{if(u&&u.lang&&!u.voice){var v=pick(u.lang);if(v)u.voice=v}if(ss.paused)ss.resume()}catch(e){}
+ var d=Date.now()-lastC<80?80:0;if(d)setTimeout(function(){os(u)},d);else os(u)};
+function unlock(){if(unlocked)return;unlocked=true;try{var u=new SpeechSynthesisUtterance(' ');u.volume=0;os(u)}catch(e){}}
+['touchend','pointerup','click'].forEach(function(ev){addEventListener(ev,unlock,{capture:true,passive:true})});
+}catch(e){}})();</script>
 </head>
 <body>
 <div id="app"></div>
